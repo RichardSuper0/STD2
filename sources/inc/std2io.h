@@ -1,23 +1,21 @@
 #ifndef STD2IO_H
 #define STD2IO_H
 
-static char *__std2_global_buf = 0;
-
-static inline void _write_format(const char *fmt) {
+static inline void _write_format(const char *fmt, const char *gbuf) {
     if (!fmt) return;
 
     char out_buf[4000000];
     long pos = 0;
-    char *gbuf = __std2_global_buf;
 
     asm volatile (
         "mov x3, #0\n\t"
         "mov x4, %[pos]\n\t"
+        "ldr x9, =3999000\n\t"
 
     "1:\n\t"
         "ldrb w5, [%[fmt], x3]\n\t"
         "cbz w5, 5f\n\t"
-        "cmp x4, #4000\n\t"
+        "cmp x4, x9\n\t"
         "bge 5f\n\t"
 
         "cmp w5, #'<'\n\t"
@@ -37,7 +35,7 @@ static inline void _write_format(const char *fmt) {
     "3:\n\t"
         "ldrb w7, [%[gbuf], x6]\n\t"
         "cbz w7, 1b\n\t"
-        "cmp x4, #4000\n\t"
+        "cmp x4, x9\n\t"
         "bge 5f\n\t"
         "strb w7, [%[out_buf], x4]\n\t"
         "add x4, x4, #1\n\t"
@@ -54,7 +52,7 @@ static inline void _write_format(const char *fmt) {
         "mov %[pos], x4\n\t"
         : [pos] "+r" (pos)
         : [fmt] "r" (fmt), [gbuf] "r" (gbuf), [out_buf] "r" (out_buf)
-        : "x3", "x4", "x5", "x6", "x7", "memory", "cc"
+        : "x3", "x4", "x5", "x6", "x7", "x9", "memory", "cc"
     );
 
     if (pos > 0) {
@@ -73,11 +71,13 @@ static inline void _write_format(const char *fmt) {
     }
 }
 
-#define write(fmt) _write_format(fmt)
+#define _GET_WR_M(_1, _2, NAME, ...) NAME
+#define write(...) _GET_WR_M(__VA_ARGS__, _write_explicit, _write_auto)(__VA_ARGS__)
+#define _write_auto(fmt) _write_format(fmt, 0)
+#define _write_explicit(fmt, buf) _write_format(fmt, buf)
 
 static inline long _read_internal(char *buf, long max_len) {
     if (max_len <= 0) return 0;
-    __std2_global_buf = buf;
 
     register long x0 asm("x0") = 0;
     register char *x1 asm("x1") = buf;
