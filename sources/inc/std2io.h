@@ -1,5 +1,5 @@
-#ifndef STD2_H
-#define STD2_H
+#ifndef STD2IO_H
+#define STD2IO_H
 
 static inline long _strlen(const char *s) {
     long len = 0;
