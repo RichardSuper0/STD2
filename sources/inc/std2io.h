@@ -6,7 +6,7 @@ static char *__std2_global_buf = 0;
 static inline void _write_format(const char *fmt) {
     if (!fmt) return;
 
-    char out_buf[4096];
+    char out_buf[4000000];
     long pos = 0;
     char *gbuf = __std2_global_buf;
 
