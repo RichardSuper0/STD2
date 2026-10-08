@@ -7,14 +7,6 @@ static inline long _strlen(const char *s) {
     return len;
 }
 
-static inline long _append_str(char *buf, long pos, const char *s) {
-    int i = 0;
-    while (s[i] != '\0' && pos < 4000) {
-        buf[pos++] = s[i++];
-    }
-    return pos;
-}
-
 static inline long _append_num(char *buf, long pos, long num) {
     char tbuf[32];
     int i = 30;
@@ -34,43 +26,42 @@ static inline long _append_num(char *buf, long pos, long num) {
     if (neg) {
         tbuf[--i] = '-';
     }
-    while (tbuf[i] != '\0') {
+    while (tbuf[i] != '\0' && pos < 4000) {
         buf[pos++] = tbuf[i++];
     }
     return pos;
 }
 
-static inline void _write_flush(const char *buf, long len) {
-    if (len <= 0) return;
-    register long x0 asm("x0") = 1;
-    register const char *x1 asm("x1") = buf;
-    register long x2 asm("x2") = len;
-    register long x8 asm("x8") = 64;
-    __sync_synchronize();
-    asm volatile("svc #0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x8) : "memory", "cc");
-    __sync_synchronize();
+static inline void _write_format(const char *fmt, ...) {
+    if (!fmt || fmt[0] == '\0') return;
+    char out_buf[4096];
+    long pos = 0;
+    __builtin_va_list args;
+    __builtin_va_start(args, fmt);
+    for (int i = 0; fmt[i] != '\0' && pos < 4000; i++) {
+        if (fmt[i] == '<') {
+            while (fmt[i] != '\0' && fmt[i] != '>') {
+                i++;
+            }
+            long val = __builtin_va_arg(args, long);
+            pos = _append_num(out_buf, pos, val);
+        } else {
+            out_buf[pos++] = fmt[i];
+        }
+    }
+    __builtin_va_end(args);
+    if (pos > 0) {
+        register long x0 asm("x0") = 1;
+        register const char *x1 asm("x1") = out_buf;
+        register long x2 asm("x2") = pos;
+        register long x8 asm("x8") = 64;
+        __sync_synchronize();
+        asm volatile("svc #0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x8) : "memory", "cc");
+        __sync_synchronize();
+    }
 }
 
-#define _AUTO_APPEND(buf, pos, val) _Generic((val), \
-    char*: _append_str(buf, pos, (char*)(val)), \
-    const char*: _append_str(buf, pos, (const char*)(val)), \
-    default: _append_num(buf, pos, (long)(val)) \
-)
-
-#define _WR_1(b, p, a)          p = _AUTO_APPEND(b, p, a);
-#define _WR_2(b, p, a, b_)      p = _AUTO_APPEND(b, p, a); p = _AUTO_APPEND(b, p, b_);
-#define _WR_3(b, p, a, b_, c)   p = _AUTO_APPEND(b, p, a); p = _AUTO_APPEND(b, p, b_); p = _AUTO_APPEND(b, p, c);
-#define _WR_4(b, p, a, b_, c, d) p = _AUTO_APPEND(b, p, a); p = _AUTO_APPEND(b, p, b_); p = _AUTO_APPEND(b, p, c); p = _AUTO_APPEND(b, p, d);
-#define _WR_5(b, p, a, b_, c, d, e) p = _AUTO_APPEND(b, p, a); p = _AUTO_APPEND(b, p, b_); p = _AUTO_APPEND(b, p, c); p = _AUTO_APPEND(b, p, d); p = _AUTO_APPEND(b, p, e);
-
-#define _GET_WR_M(_1,_2,_3,_4,_5,NAME,...) NAME
-
-#define write(...) do { \
-    char out_buf[4096]; \
-    long pos = 0; \
-    _GET_WR_M(__VA_ARGS__, _WR_5, _WR_4, _WR_3, _WR_2, _WR_1)(out_buf, pos, __VA_ARGS__) \
-    _write_flush(out_buf, pos); \
-} while(0)
+#define write(...) _write_format(__VA_ARGS__)
 
 static inline long _read_internal(char *buf, long max_len) {
     if (max_len <= 0) return 0;
