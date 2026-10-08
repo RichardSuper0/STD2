@@ -19,15 +19,10 @@ This example demonstrates how to read user input and print it back to the screen
 
 int main() {
     write("Enter a message: ");
-    
     char buffer[256];
     read(buffer);
-    
-    write("You wrote: ");
-    write(buffer);
-    write("\n");
-    
-    return 0;
+    write("You wrote: <buffer>\n");
+    exit;
 }
 ```
 
