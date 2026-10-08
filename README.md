@@ -33,7 +33,7 @@ int main() {
 
 ## ⚙️ Bare-Metal Compilation
 
-To compile your project and guarantee that no standard system libraries are linked, use the `-nostdlib` flag with `g++` or `clang++`:
+To compile your project and guarantee that no standard system libraries are linked, use the `-nostdlib` flag with `gcc/g++` or `clang/clang++`:
 
 ```bash
 g++ -nostdlib -O3 main.cpp -o main
