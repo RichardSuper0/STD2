@@ -11,32 +11,32 @@ static inline void _write_format(const char *fmt) {
     char *gbuf = __std2_global_buf;
 
     asm volatile (
-        "mov x3, #0\n\t"              // i = 0 (indice fmt)
-        "mov x4, %[pos]\n\t"          // pos (indice out_buf)
+        "mov x3, #0\n\t"
+        "mov x4, %[pos]\n\t"
 
     "1:\n\t"
-        "ldrb w5, [%[fmt], x3]\n\t"   // c = fmt[i]
-        "cbz w5, 5f\n\t"              // se c == '\0', esci dal ciclo principale
+        "ldrb w5, [%[fmt], x3]\n\t"
+        "cbz w5, 5f\n\t"
         "cmp x4, #4000\n\t"
-        "bge 5f\n\t"                  // se out_buf è pieno, esci
+        "bge 5f\n\t"
 
-        "cmp w5, #'<'\n\t"            // se c == '<', entra nel parsing del tag
+        "cmp w5, #'<'\n\t"
         "bne 4f\n\t"
 
-    "2:\n\t"                          // Ciclo per saltare i caratteri dentro <...>
+    "2:\n\t"
         "add x3, x3, #1\n\t"
         "ldrb w5, [%[fmt], x3]\n\t"
-        "cbz w5, 5f\n\t"              // se finisce la stringa prematuramente, esci
+        "cbz w5, 5f\n\t"
         "cmp w5, #'>'\n\t"
         "bne 2b\n\t"
-        "add x3, x3, #1\n\t"          // salta il '>'
+        "add x3, x3, #1\n\t"
 
-        "cbz %[gbuf], 1b\n\t"         // se __std2_global_buf è NULL, non appendere nulla
-        "mov x6, #0\n\t"              // j = 0 (indice global_buf)
+        "cbz %[gbuf], 1b\n\t"
+        "mov x6, #0\n\t"
 
-    "3:\n\t"                          // Ciclo per copiare __std2_global_buf in out_buf
+    "3:\n\t"
         "ldrb w7, [%[gbuf], x6]\n\t"
-        "cbz w7, 1b\n\t"              // se global_buf[j] == '\0', torna al ciclo principale
+        "cbz w7, 1b\n\t"
         "cmp x4, #4000\n\t"
         "bge 5f\n\t"
         "strb w7, [%[out_buf], x4]\n\t"
@@ -44,14 +44,14 @@ static inline void _write_format(const char *fmt) {
         "add x6, x6, #1\n\t"
         "b 3b\n\t"
 
-    "4:\n\t"                          // Copia normale del carattere corrente
+    "4:\n\t"
         "strb w5, [%[out_buf], x4]\n\t"
         "add x4, x4, #1\n\t"
         "add x3, x3, #1\n\t"
         "b 1b\n\t"
 
     "5:\n\t"
-        "mov %[pos], x4\n\t"          // Salva la posizione finale aggiornata
+        "mov %[pos], x4\n\t"
         : [pos] "+r" (pos)
         : [fmt] "r" (fmt), [gbuf] "r" (gbuf), [out_buf] "r" (out_buf)
         : "x3", "x4", "x5", "x6", "x7", "memory", "cc"
